@@ -83,7 +83,7 @@ class BoolConst(BoolExpression):
         return True
     def isNNF(self):
         return True
-
+    
 class BoolVar(BoolExpression):
     def __init__(self, name):
         self.name = name
@@ -119,28 +119,35 @@ class Not(BoolExpression):
     def tex(self):
         return '\\neg ' + self.exp.tex()
     def eval(self, interp):
-        # Implement me!
-        pass
+        return BoolConst(not self.exp.eval(interp).val)
     def NNF(self):
-        # Implement me!
-        pass
+        exp_ = self.exp.removeImplications()
+        if isinstance(exp_, And):
+            return Or(Not(exp_.exp1), Not(exp_.exp2))
+        elif isinstance(exp_, Or):
+            return And(Not(exp_.exp1), Not(exp_.exp2))
+        elif isinstance(exp_, Not):
+            return exp_.exp.NNF()
+        else:
+            return self
+
     def getVars(self):
-        # Implement me!
-        pass
+        return self.exp.getVars()
     def simplify(self):
-        # Implement me!
-        pass
+        if isinstance(self.exp, Not):
+            return self.exp.exp.simplify()
+        elif isinstance(self.exp, BoolConst):
+            return BoolConst(not self.exp.val)
+        else:
+            return Not(self.exp.simplify())
     def indented(self,d):
         return TABWIDTH*d*' ' + "Not\n" + self.exp.indented(d + 1) + "\n"
     def removeImplications(self):
-        # Implement me!
-        pass
+        return Not(self.exp.removeImplications())
     def isLiteral(self):
-        # Implement me!
-        pass
+        return isinstance(self.exp, BoolConst) or isinstance(self.exp, BoolVar)
     def isNNF(self):
-        # Implement me!
-        pass
+        return self.exp.isAtom()
 
 
 class And(BoolExpression):
@@ -152,17 +159,29 @@ class And(BoolExpression):
     def tex(self):
         return "(" + self.exp1.tex() + " \\land " + self.exp2.tex() + ")"
     def eval(self, interp):
-        # Implement me!
-        pass
+        return BoolConst(self.exp1.eval(interp).val and self.exp2.eval(interp).val)
     def NNF(self):
-        # Implement me!
-        pass
+        return And (self.exp1.NNF(), self.exp2.NNF())
     def getVars(self):
-        # Implement me!
-        pass
+        ans = set()
+        ans.update(self.exp1.getVars())
+        ans.update(self.exp2.getVars())
+        return [*ans]
     def simplify(self):
-        # Implement me!
-        pass
+        simp1 = self.exp1.simplify()
+        simp2 = self.exp2.simplify()
+        if simp1  == simp2:
+            return simp1
+        elif isinstance(simp1, BoolConst):
+            if not simp1.val:
+                return simp1
+            else:
+                return simp2
+        elif isinstance(simp2, BoolConst):
+            if not simp2.val:
+                return simp2
+            else:
+                return simp1
     def indented(self,d):
         result = TABWIDTH*d*' '
         result += "And\n"
@@ -170,14 +189,11 @@ class And(BoolExpression):
         result += self.exp2.indented(d + 1)
         return result
     def removeImplications(self):
-        # Implement me!
-        pass
+        return And(self.exp1.removeImplications(), self.exp2.removeImplications())
     def isLiteral(self):
-        # Implement me!
-        pass
+        return False
     def isNNF(self):
-        # Implement me!
-        pass
+        return self.exp1.isNNF() and self.exp2.isNNF()
 
 
 class Or(BoolExpression):
@@ -189,17 +205,29 @@ class Or(BoolExpression):
     def tex(self):
         return "(" + self.exp1.tex() + " \\lor " + self.exp2.tex() + ")"
     def eval(self, interp):
-        # Implement me!
-        pass
+        return BoolConst(self.exp1.eval(interp).val or self.exp2.eval(interp).val)
     def NNF(self):
-        # Implement me!
-        pass
+        return Or (self.exp1.NNF(), self.exp2.NNF())
     def getVars(self):
-        # Implement me!
-        pass
+        ans = set()
+        ans.update(self.exp1.getVars())
+        ans.update(self.exp2.getVars())
+        return [*ans]
     def simplify(self):
-        # Implement me!
-        pass
+        simp1 = self.exp1.simplify()
+        simp2 = self.exp2.simplify()
+        if simp1  == simp2:
+            return simp1
+        elif isinstance(simp1, BoolConst):
+            if not simp1.val:
+                return simp2
+            else:
+                return simp1
+        elif isinstance(simp2, BoolConst):
+            if not simp2.val:
+                return simp1
+            else:
+                return simp2
     def indented(self,d):
         result = TABWIDTH*d*' '
         result += "Or\n"
@@ -207,14 +235,11 @@ class Or(BoolExpression):
         result += self.exp2.indented(d + 1)
         return result
     def removeImplications(self):
-        # Implement me!
-        pass
+        return Or(self.exp1.removeImplications(), self.exp2.removeImplications())
     def isLiteral(self):
-        # Implement me!
-        pass
+        return False
     def isNNF(self):
-        # Implement me!
-        pass
+        return self.exp1.isNNF() and self.exp2.isNNF()
 
 class Implies(BoolExpression):
     def __init__(self, exp1, exp2):
@@ -225,17 +250,29 @@ class Implies(BoolExpression):
     def tex(self):
         return "(" + self.exp1.tex() + " \\Rightarrow " + self.exp2.tex() + ")"
     def eval(self, interp):
-        # Implement me!
-        pass
+        return BoolConst((not self.exp1.eval(interp).val) or self.exp2.eval(interp).val)
     def NNF(self):
-        # Implement me!
-        pass
+        return Implies(self.exp1, self.exp2).removeImplications().NNF()
     def getVars(self):
-        # Implement me!
-        pass
+        ans = set()
+        ans.update(self.exp1.getVars())
+        ans.update(self.exp2.getVars())
+        return [*ans]
     def simplify(self):
-        # Implement me!
-        pass
+        simp1 = self.exp1.simplify()
+        simp2 = self.exp2.simplify()
+        if simp1  == simp2:
+            return BoolConst(True)
+        elif isinstance(simp1, BoolConst):
+            if not simp1.val:
+                return BoolConst(True)
+            else:
+                return simp2
+        elif isinstance(simp2, BoolConst):
+            if not simp2.val:
+                return Not(simp1)
+            else:
+                return BoolConst(True)
     def indented(self,d):
         result = TABWIDTH*d*' '
         result += "Implies\n"
@@ -243,14 +280,11 @@ class Implies(BoolExpression):
         result += self.exp2.indented(d + 1) + "\n"
         return result
     def removeImplications(self):
-        # Implement me!
-        pass
+        return (Or(Not(self.exp1.removeImplications()), self.exp2.removeImplications()))
     def isLiteral(self):
-        # Implement me!
-        pass
+        return False
     def isNNF(self):
-        # Implement me!
-        pass
+        return False
 
 class Iff(BoolExpression):
     def __init__(self, exp1, exp2):
@@ -265,13 +299,27 @@ class Iff(BoolExpression):
         val2 = self.exp2.eval(interp)
         return BoolConst(val1.val == val2.val)
     def NNF(self):
-        return Iff(self.exp1.NNF(), self.exp2.NNF())
+        return Iff(self.exp1, self.exp2).removeImplications().NNF()
     def getVars(self):
-        # Implement me!
-        pass
+        ans = set()
+        ans.update(self.exp1.getVars())
+        ans.update(self.exp2.getVars())
+        return [*ans]
     def simplify(self):
-        # Implement me!
-        pass
+        simp1 = self.exp1.simplify()
+        simp2 = self.exp2.simplify()
+        if simp1  == simp2:
+            return BoolConst(True)
+        elif isinstance(simp1, BoolConst):
+            if not simp1.val:
+                return Not(simp2).simplify()
+            else:
+                return simp2
+        elif isinstance(simp2, BoolConst):
+            if not simp2.val:
+                return Not(simp1).simplify()
+            else:
+                return simp1
     def indented(self,d):
         result = TABWIDTH*d*' '
         result += "Iff\n"
@@ -279,14 +327,13 @@ class Iff(BoolExpression):
         result += self.exp2.indented(d + 1)
         return result
     def removeImplications(self):
-        # Implement me!
-        pass
+        A = self.exp1.removeImplications()
+        B = self.exp2.removeImplications()
+        return And(Implies(A, B).removeImplications(), Implies(B,A).removeImplications())
     def isLiteral(self):
-        # Implement me!
-        pass
+        return False
     def isNNF(self):
-        # Implement me!
-        pass
+        return False
 
     
 
